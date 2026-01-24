@@ -13,7 +13,6 @@ const {
   resendTwoFactorOtp,
   setMonthlyBudget,
   getMonthlyBudget,
-  setProfile,
   updateAvatar,
   removeAvatar,
   updateProfile,
@@ -40,8 +39,6 @@ router.get('/2fa-status', protect, getTwoFactorStatus);
 
 router.get("/budget", protect, getMonthlyBudget);
 router.put("/budget", protect, setMonthlyBudget);
-
-router.put("/set-profile", protect, setProfile);
 
 router.put("/update-avatar", protect, updateAvatar);
 router.delete("/remove-avatar", protect, removeAvatar);
