@@ -43,12 +43,12 @@ const Footer = () => {
   ];
 
   const handleFeedbackSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setSubmitStatus(null);
+  e.preventDefault();
+  setLoading(true);
+  setSubmitStatus(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/feedback`, {
+      const response = await fetch("http://localhost:5000/api/feedback", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -56,25 +56,26 @@ const Footer = () => {
         body: JSON.stringify(feedbackForm),
       });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (data.success) {
-        setSubmitStatus("success");
-        setFeedbackForm({ name: "", email: "", subject: "", message: "" });
-        setTimeout(() => {
-          setShowFeedbackModal(false);
-          setSubmitStatus(null);
-        }, 2000);
-      } else {
-        setSubmitStatus("error");
-      }
-    } catch (error) {
-      console.error("Feedback submission error:", error);
+    if (data.success) {
+      setSubmitStatus("success");
+      setFeedbackForm({ name: "", email: "", subject: "", message: "" });
+      setTimeout(() => {
+        setShowFeedbackModal(false);
+        setSubmitStatus(null);
+      }, 2000);
+    } else {
       setSubmitStatus("error");
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    console.error("Feedback submission error:", error);
+    console.error("API_URL:", API_URL); // Debug log
+    setSubmitStatus("error");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleInputChange = (e) => {
     setFeedbackForm({
