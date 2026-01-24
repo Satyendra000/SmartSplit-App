@@ -7,7 +7,7 @@ const {
   OTP_VERIFICATION_TEMPLATE,
   WELCOME_EMAIL_TEMPLATE,
 } = require("../config/emailTemplate");
-const transporter = require("../config/nodeMailer");
+const sgMail = require("../config/sendgrid");
 const Expense = require("../models/Expense");
 const Group = require("../models/Group");
 
@@ -16,6 +16,25 @@ const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: "30d",
   });
+};
+
+// Helper function to send emails using SendGrid
+const sendEmail = async (to, subject, html) => {
+  try {
+    const msg = {
+      to,
+      from: process.env.SENDER_EMAIL,
+      subject,
+      html,
+    };
+
+    await sgMail.send(msg);
+    console.log(`✅ Email sent successfully to ${to}`);
+    return true;
+  } catch (error) {
+    console.error(`❌ SendGrid Error:`, error.response?.body || error.message);
+    return false;
+  }
 };
 
 // @desc    Register new user
@@ -53,16 +72,12 @@ exports.register = async (req, res) => {
       password: hashedPassword,
     });
 
-    const welcomeMail = {
-      from: process.env.SENDER_EMAIL,
-      to: user.email,
-      subject: "Welcome to SmartSplit! 🎉",
-      html: WELCOME_EMAIL_TEMPLATE(user.name),
-    };
-
-    transporter
-      .sendMail(welcomeMail)
-      .catch((err) => console.error("Error sending welcome email:", err));
+    // Send welcome email
+    await sendEmail(
+      user.email,
+      "Welcome to SmartSplit! 🎉",
+      WELCOME_EMAIL_TEMPLATE(user.name),
+    );
 
     // Generate token
     const token = generateToken(user._id);
@@ -79,6 +94,7 @@ exports.register = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Registration error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -125,37 +141,33 @@ exports.login = async (req, res) => {
       user.twoFactorOtpExpireAt = Date.now() + 10 * 60 * 1000; // 10 minutes
       await user.save();
 
-      // Send OTP via email
-      try {
-        const otpMail = {
-          from: process.env.SENDER_EMAIL,
-          to: user.email,
-          subject: "Login Verification Code - SmartSplit",
-          html: TWO_FACTOR_LOGIN_TEMPLATE(
-            OTP,
-            user.name,
-            req.headers["user-agent"] || "Unknown Device",
-          ),
-        };
+      // Send OTP via email using SendGrid
+      const emailSent = await sendEmail(
+        user.email,
+        "Login Verification Code - SmartSplit",
+        TWO_FACTOR_LOGIN_TEMPLATE(
+          OTP,
+          user.name,
+          req.headers["user-agent"] || "Unknown Device",
+        ),
+      );
 
-        await transporter.sendMail(otpMail);
-
-        return res.json({
-          success: true,
-          requiresTwoFactor: true,
-          message: "Verification code sent to your email",
-          data: {
-            email: user.email,
-            userId: user._id,
-          },
-        });
-      } catch (emailError) {
-        console.error("Error sending 2FA OTP:", emailError);
+      if (!emailSent) {
         return res.status(500).json({
           success: false,
           message: "Failed to send verification code. Please try again.",
         });
       }
+
+      return res.json({
+        success: true,
+        requiresTwoFactor: true,
+        message: "Verification code sent to your email",
+        data: {
+          email: user.email,
+          userId: user._id,
+        },
+      });
     }
 
     // ✅ IF 2FA NOT ENABLED, LOGIN DIRECTLY
@@ -174,6 +186,7 @@ exports.login = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Login error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -200,92 +213,6 @@ exports.getMe = async (req, res) => {
   }
 };
 
-exports.sentVerifyOtp = async (req, res) => {
-  try {
-    const { userId } = req;
-    const user = await userModel.findById(userId);
-
-    if (user.isAccountVerified) {
-      return res.json({ success: false, message: "Acoount Already Verified" });
-    }
-
-    const OTP = String(Math.floor(100000 + Math.random() * 900000));
-
-    user.verifyOtp = OTP;
-    user.verifyOtpExpiryAt = Date.now() + 10 * 60 * 1000;
-    await user.save();
-
-    const mailOption = {
-      from: process.env.SENDER_EMAIL,
-      to: user.email,
-      subject: "Verify Your Email - SmartSplit",
-      html: OTP_VERIFICATION_TEMPLATE(OTP, user.name, 10), // 24 hours in minutes
-    };
-
-    await transporter.sendMail(mailOption);
-    return res.json({
-      success: true,
-      message: "Verification OTP sent on Email",
-    });
-  } catch (error) {
-    return res.json({ success: false, message: error.message });
-  }
-};
-
-exports.verifyEmail = async (req, res) => {
-  const { userId } = req;
-  const { otp } = req.body;
-  console.log(otp);
-  const user = await userModel.findById(userId);
-  if (!userId || !user.verifyOtp) {
-    return res.json({
-      success: false,
-      message: "Missing Details",
-    });
-  }
-
-  try {
-    if (!user) {
-      return res.json({
-        success: false,
-        message: "User Not Found",
-      });
-    }
-
-    if (user.verifyOtp === "" || user.verifyOtp !== otp) {
-      return res.json({
-        success: false,
-        message: "Invalid OTP",
-      });
-    }
-
-    if (user.verifyOtpExpiryAt < Date.now()) {
-      return res.json({
-        success: false,
-        message: "OTP expired",
-      });
-    }
-
-    user.isAccountVerified = true;
-    user.verifyOtp = "";
-    user.verifyOtpExpiryAt = 0;
-
-    await user.save();
-
-    return res.json({ success: true, message: "Email verified successfully" });
-  } catch (error) {
-    return res.json({ success: false, message: error.message });
-  }
-};
-
-exports.isAuthenticated = async (req, res) => {
-  try {
-    return res.json({ success: true });
-  } catch (error) {
-    return res.json({ success: false, message: error.message });
-  }
-};
-
 exports.sendResetOtp = async (req, res) => {
   const { email } = req.body;
 
@@ -305,19 +232,26 @@ exports.sendResetOtp = async (req, res) => {
     user.resetOtpExpireAt = Date.now() + 10 * 60 * 1000;
     await user.save();
 
-    const resetMail = {
-      from: process.env.SENDER_EMAIL,
-      to: user.email,
-      subject: "Reset Your Password - SmartSplit",
-      html: PASSWORD_RESET_TEMPLATE(OTP, user.name, 15),
-    };
+    // Send reset email using SendGrid
+    const emailSent = await sendEmail(
+      user.email,
+      "Reset Your Password - SmartSplit",
+      PASSWORD_RESET_TEMPLATE(OTP, user.name, 15),
+    );
 
-    await transporter.sendMail(resetMail);
+    if (!emailSent) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send reset email. Please try again.",
+      });
+    }
+
     return res.json({
       success: true,
       message: "Password Reset OTP sent to your email",
     });
   } catch (error) {
+    console.error("Reset OTP error:", error);
     return res.json({ success: false, message: error.message });
   }
 };
@@ -413,24 +347,6 @@ exports.changePassword = async (req, res) => {
     res.json({
       success: true,
       message: "Password changed successfully",
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-exports.setMonthlyBudget = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    const MonthlyBudget = req;
-
-    user.monthlyBudget = MonthlyBudget;
-    res.json({
-      success: true,
-      data: user,
     });
   } catch (error) {
     res.status(500).json({
@@ -606,21 +522,26 @@ exports.resendTwoFactorOtp = async (req, res) => {
     user.twoFactorOtpExpireAt = Date.now() + 10 * 60 * 1000; // 10 minutes
     await user.save();
 
-    // Send OTP
-    const otpMail = {
-      from: process.env.SENDER_EMAIL,
-      to: user.email,
-      subject: "SmartSplit - New Login Verification Code",
-      text: `Your new login verification code is: ${OTP}\n\nThis code will expire in 10 minutes.`,
-    };
+    // Send OTP using SendGrid
+    const emailSent = await sendEmail(
+      user.email,
+      "SmartSplit - New Login Verification Code",
+      TWO_FACTOR_LOGIN_TEMPLATE(OTP, user.name, "Resend Request"),
+    );
 
-    await transporter.sendMail(otpMail);
+    if (!emailSent) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send verification code. Please try again.",
+      });
+    }
 
     res.json({
       success: true,
       message: "New verification code sent to your email",
     });
   } catch (error) {
+    console.error("Resend OTP error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -700,58 +621,6 @@ exports.getMonthlyBudget = async (req, res) => {
   }
 };
 
-exports.setProfile = async (req, res) => {
-  try {
-    const { phone, bio } = req.body;
-
-    const isTenDigits = /^\d{10}$/.test(phone);
-    if (phone.length !== 10 || !isTenDigits) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide a valid Phone Number",
-      });
-    }
-
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "User Not Found",
-      });
-    }
-
-    user.phone = phone;
-    if (bio.length != 0) {
-      user.bio = bio;
-    }
-
-    await user.save();
-
-    if (bio.length != 0)
-      res.json({
-        success: true,
-        message: "Phone number & Bio added successfully",
-        data: {
-          phone: user.phone,
-          bio: user.bio,
-        },
-      });
-    else
-      res.json({
-        success: true,
-        message: "Phone number added successfully",
-        data: {
-          phone: user.phone,
-        },
-      });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
 exports.updateAvatar = async (req, res) => {
   try {
     const { avatar } = req.body;
@@ -802,9 +671,6 @@ exports.updateAvatar = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating avatar:", error);
-    if (error instanceof mongoose.Error.ValidationError) {
-      console.error("Mongoose validation error:", error);
-    }
     res.status(500).json({
       success: false,
       message: error.message,
