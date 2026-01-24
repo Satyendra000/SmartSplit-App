@@ -14,7 +14,8 @@ const app = express();
 // Middleware
 app.use(
   cors({
-    origin: "http://localhost:3000", // Your React app URL
+    origin: ["http://localhost:3000",
+             "https://smartsplit-nine.vercel.app/"]// Your React app URL
     credentials: true,
   })
 );
