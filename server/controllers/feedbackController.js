@@ -1,4 +1,4 @@
-const transporter = require("../config/nodeMailer");
+const sgMail = require("../config/sendgrid");
 
 exports.submitFeedback = async (req, res) => {
   try {
@@ -12,7 +12,6 @@ exports.submitFeedback = async (req, res) => {
       });
     }
 
-    // Email validation
     const emailRegex = /^\S+@\S+\.\S+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({
@@ -21,12 +20,12 @@ exports.submitFeedback = async (req, res) => {
       });
     }
 
-    console.log("📧 Attempting to send feedback email...");
+    console.log("📧 Attempting to send feedback email via SendGrid...");
 
-    // Create email content
-    const mailOptions = {
-      from: process.env.SENDER_EMAIL || process.env.SMTP_USER,
-      to: process.env.FEEDBACK_EMAIL || process.env.SMTP_USER,
+    // Email to you (feedback notification)
+    const feedbackMsg = {
+      to: process.env.FEEDBACK_EMAIL || process.env.SENDER_EMAIL,
+      from: process.env.SENDER_EMAIL, // Must be verified in SendGrid
       replyTo: email,
       subject: `SmartSplit Feedback: ${subject}`,
       html: `
@@ -44,7 +43,6 @@ exports.submitFeedback = async (req, res) => {
             .value { color: #333; }
             .message-box { background: white; padding: 20px; border-left: 4px solid #f97316; 
                            margin-top: 20px; border-radius: 5px; }
-            .footer { text-align: center; margin-top: 20px; color: #999; font-size: 12px; }
           </style>
         </head>
         <body>
@@ -58,25 +56,21 @@ exports.submitFeedback = async (req, res) => {
                 <div class="label">👤 From:</div>
                 <div class="value">${name}</div>
               </div>
-              
               <div class="info-row">
                 <div class="label">📧 Email:</div>
                 <div class="value"><a href="mailto:${email}">${email}</a></div>
               </div>
-              
               <div class="info-row">
                 <div class="label">📝 Subject:</div>
                 <div class="value">${subject}</div>
               </div>
-              
               <div class="message-box">
                 <div class="label">💬 Message:</div>
                 <div class="value" style="white-space: pre-wrap;">${message}</div>
               </div>
-              
-              <div class="footer">
+              <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
                 <p>Sent via SmartSplit Feedback Form</p>
-                <p>Received on ${new Date().toLocaleString("en-US", {
+                <p>${new Date().toLocaleString("en-US", {
                   dateStyle: "full",
                   timeStyle: "short",
                 })}</p>
@@ -101,14 +95,13 @@ Sent on ${new Date().toLocaleString()}
       `,
     };
 
-    // Send email
-    const info = await transporter.sendMail(mailOptions);
-    console.log("✅ Feedback email sent:", info.messageId);
+    await sgMail.send(feedbackMsg);
+    console.log("✅ Feedback email sent via SendGrid");
 
-    // Send confirmation email to user
-    const confirmationMail = {
-      from: process.env.SENDER_EMAIL || process.env.SMTP_USER,
+    // Confirmation email to user
+    const confirmationMsg = {
       to: email,
+      from: process.env.SENDER_EMAIL,
       subject: "Thank you for your feedback - SmartSplit",
       html: `
         <!DOCTYPE html>
@@ -130,16 +123,12 @@ Sent on ${new Date().toLocaleString()}
             <div class="content">
               <p>Hi ${name},</p>
               <p>Thank you for taking the time to share your feedback with us! We've received your message and our team will review it shortly.</p>
-              
               <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <p style="margin: 0; color: #666;"><strong>Your Feedback:</strong></p>
                 <p style="margin: 10px 0 0 0;">"${subject}"</p>
               </div>
-              
               <p>We typically respond within 24-48 hours. If your feedback requires a response, we'll get back to you at <strong>${email}</strong>.</p>
-              
               <p>Keep splitting smart! 🚀</p>
-              
               <p style="color: #666; margin-top: 30px;">
                 Best regards,<br>
                 <strong>The SmartSplit Team</strong>
@@ -151,8 +140,8 @@ Sent on ${new Date().toLocaleString()}
       `,
     };
 
-    await transporter.sendMail(confirmationMail);
-    if(process.env.NODE_ENV === 'development') console.log("✅ Confirmation email sent to user");
+    await sgMail.send(confirmationMsg);
+    console.log("✅ Confirmation email sent to user via SendGrid");
 
     res.json({
       success: true,
@@ -161,16 +150,14 @@ Sent on ${new Date().toLocaleString()}
   } catch (error) {
     console.error("❌ Feedback submission error:", error);
 
-    // More detailed error response
-    const errorMessage =
-      error.code === "EAUTH"
-        ? "Email authentication failed. Please contact support."
-        : "Failed to send feedback. Please try again later.";
+    // SendGrid specific error handling
+    if (error.response) {
+      console.error("SendGrid Error Response:", error.response.body);
+    }
 
     res.status(500).json({
       success: false,
-      message: errorMessage,
-      ...(process.env.NODE_ENV === "development" && { error: error.message }),
+      message: "Failed to send feedback. Please try again later.",
     });
   }
 };
