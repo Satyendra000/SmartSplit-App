@@ -1,6 +1,6 @@
 const sgMail = require("../config/sendgrid");
 
-exports.submitFeedback = async (req, res) => {
+const submitFeedback = async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
 
@@ -140,8 +140,14 @@ Sent on ${new Date().toLocaleString()}
       `,
     };
 
+<<<<<<< HEAD
     await sgMail.send(confirmationMsg);
     console.log("✅ Confirmation email sent to user via SendGrid");
+=======
+    await transporter.sendMail(confirmationMail);
+    if (process.env.NODE_ENV === "development")
+      console.log("✅ Confirmation email sent to user");
+>>>>>>> 82e3a76c2d8a0706ea38f6c64889b29a27788b44
 
     res.json({
       success: true,
@@ -160,4 +166,10 @@ Sent on ${new Date().toLocaleString()}
       message: "Failed to send feedback. Please try again later.",
     });
   }
+<<<<<<< HEAD
 };
+=======
+};
+
+module.exports = { submitFeedback };
+>>>>>>> 82e3a76c2d8a0706ea38f6c64889b29a27788b44
