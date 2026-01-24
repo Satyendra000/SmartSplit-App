@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Target, Settings, AlertCircle, TrendingUp } from "lucide-react";
+import API_URL from "../../config/api";
 
 // Budget Status Card Component
 export const BudgetStatusCard = ({ stats, onSetBudget, refreshTrigger }) => {
@@ -15,7 +16,7 @@ export const BudgetStatusCard = ({ stats, onSetBudget, refreshTrigger }) => {
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      const response = await fetch("http://localhost:5000/api/auth/budget", {
+      const response = await fetch(`${API_URL}/api/auth/budget`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -197,7 +198,7 @@ export const BudgetSettingsModal = ({
       setLoading(true);
       const token = localStorage.getItem("token");
 
-      const response = await fetch("http://localhost:5000/api/auth/budget", {
+      const response = await fetch(`${API_URL}/api/auth/budget`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -237,7 +238,7 @@ export const BudgetSettingsModal = ({
           const token = localStorage.getItem("token");
 
           const response = await fetch(
-            "http://localhost:5000/api/auth/budget",
+            `${API_URL}/api/auth/budget`,
             {
               method: "PUT",
               headers: {

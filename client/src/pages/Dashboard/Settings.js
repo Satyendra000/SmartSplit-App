@@ -1,5 +1,6 @@
 import { useConfirm } from "../../components/common/ConfirmModal";
 import { useState, useEffect, useRef } from "react";
+import API_URL from "../../config/api";
 import {
   Users,
   Bell,
@@ -68,14 +69,11 @@ const Settings = ({ toast }) => {
     const load2FAStatus = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await fetch(
-          "http://localhost:5000/api/auth/2fa-status",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+        const response = await fetch(`${API_URL}/api/auth/2fa-status`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
           },
-        );
+        });
         const data = await response.json();
         if (data.success) {
           setTwoFactorEnabled(data.data.twoFactorEnabled);
@@ -96,7 +94,7 @@ const Settings = ({ toast }) => {
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        "http://localhost:5000/api/auth/toggle-2fa",
+        `${API_URL}/api/auth/toggle-2fa`,
         {
           method: "PUT",
           headers: {
@@ -130,7 +128,7 @@ const Settings = ({ toast }) => {
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      const response = await fetch("http://localhost:5000/api/auth/me", {
+      const response = await fetch(`${API_URL}/api/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -206,7 +204,7 @@ const Settings = ({ toast }) => {
 
         const token = localStorage.getItem("token");
         const response = await fetch(
-          "http://localhost:5000/api/auth/update-avatar",
+          `${API_URL}/api/auth/update-avatar`,
           {
             method: "PUT",
             headers: {
@@ -263,7 +261,7 @@ const Settings = ({ toast }) => {
         `${profileData.firstName} ${profileData.lastName}`.trim();
 
       const response = await fetch(
-        "http://localhost:5000/api/auth/update-profile",
+        `${API_URL}/api/auth/update-profile`,
         {
           method: "PUT",
           headers: {
@@ -330,7 +328,7 @@ const Settings = ({ toast }) => {
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        "http://localhost:5000/api/auth/change-password",
+        `${API_URL}/api/auth/change-password`,
         {
           method: "PUT",
           headers: {
@@ -412,7 +410,7 @@ const Settings = ({ toast }) => {
      const token = localStorage.getItem("token");
 
      const response = await fetch(
-       "http://localhost:5000/api/auth/delete-account",
+       `${API_URL}/api/auth/delete-account`,
        {
          method: "DELETE",
          headers: {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import API_URL from "../../config/api";
 import { Wallet, CreditCard, Users, Plus } from "lucide-react";
 import DashboardSidebar from "../../components/dashboard/Sidebar";
 import { expenseAPI } from "../../services/api";
@@ -52,7 +53,7 @@ const PersonalDashboard = ({toast}) => {
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      const response = await fetch("http://localhost:5000/api/auth/budget", {
+      const response = await fetch(`${API_URL}/api/auth/budget`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

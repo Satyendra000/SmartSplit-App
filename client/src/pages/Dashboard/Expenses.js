@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import API_URL from "../../config/api";
 import {
   Users,
   Download,
@@ -63,7 +64,7 @@ const Expenses = ({toast}) => {
         return;
       }
 
-      const response = await fetch("http://localhost:5000/api/expenses", {
+      const response = await fetch(`${API_URL}/api/expenses`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -206,7 +207,7 @@ const Expenses = ({toast}) => {
       if (process.env.NODE_ENV === "development") 
         console.log("Sending expense data:", expenseData);
 
-      const response = await fetch("http://localhost:5000/api/expenses", {
+      const response = await fetch(`${API_URL}/api/expenses`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

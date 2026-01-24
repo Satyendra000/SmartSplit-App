@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useConfirm } from "../../components/common/ConfirmModal";
 import { Users, Plus, ArrowRight, Trash2, Clock } from "lucide-react";
 import Footer from "../../components/common/Footer";
+import API_URL from "../../config/api";
 
 const SplitSetup = ({ toast }) => {
   const navigate = useNavigate();
@@ -54,16 +55,13 @@ const SplitSetup = ({ toast }) => {
 
     try {
       // Use backend API instead of localStorage
-      const response = await fetch(
-        "http://localhost:5000/api/sessions/create",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(session),
+      const response = await fetch(`${API_URL}/api/sessions/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(session),
+      });
 
       const data = await response.json();
 

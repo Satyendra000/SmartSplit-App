@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import API_URL from "../../config/api";
 import { useNavigate } from "react-router-dom";
 import { useConfirm } from "../../components/common/ConfirmModal";
 import {
@@ -63,7 +64,7 @@ const Auth = ({ toast }) => {
         ? { email: formData.email, password: formData.password }
         : formData;
 
-      const response = await fetch(`http://localhost:5000${endpoint}`, {
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -108,17 +109,14 @@ const Auth = ({ toast }) => {
     }
 
     try {
-      const response = await fetch(
-        "http://localhost:5000/api/auth/verify-2fa-otp",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: userEmail,
-            otp: twoFactorOtp,
-          }),
-        },
-      );
+      const response = await fetch(`${API_URL}/api/auth/verify-2fa-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: userEmail,
+          otp: twoFactorOtp,
+        }),
+      });
 
       const data = await response.json();
 
@@ -144,14 +142,11 @@ const Auth = ({ toast }) => {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        "http://localhost:5000/api/auth/resend-2fa-otp",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: userEmail }),
-        },
-      );
+      const response = await fetch(`${API_URL}/api/auth/resend-2fa-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail }),
+      });
 
       const data = await response.json();
 

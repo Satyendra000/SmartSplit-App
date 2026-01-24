@@ -11,4 +11,13 @@ transporter = createTransport({
   },
 });
 
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ SMTP Configuration Error:", error.message);
+    console.log("Check your SMTP_USER and SMTP_PASS environment variables");
+  } else {
+    console.log("✅ Email server is ready to send messages");
+  }
+});
+
 module.exports = transporter;

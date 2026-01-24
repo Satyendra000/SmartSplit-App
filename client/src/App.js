@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import API_URL from "./config/api";
 import {
   BrowserRouter as Router,
   Routes,
@@ -310,9 +311,7 @@ const Dashboard = ({ appMode, toast }) => {
       setLoading(true);
 
       // Fetch from backend API
-      const response = await fetch(
-        `http://localhost:5000/api/sessions/${sessionId}`,
-      );
+      const response = await fetch(`${API_URL}/api/sessions/${sessionId}`);
       const data = await response.json();
 
       if (data.success) {
@@ -364,21 +363,18 @@ const Dashboard = ({ appMode, toast }) => {
         payload.settledPayments = updatedSettlements;
       }
 
-      const response = await fetch(
-        `http://localhost:5000/api/sessions/${sessionId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
+      const response = await fetch(`${API_URL}/api/sessions/${sessionId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(payload),
+      });
 
       const data = await response.json();
 
       if (data.success) {
-        console.log("✅ Session saved to backend");
+        if(process.env.NODE_ENV === 'development') console.log("✅ Session saved to backend");
       } else {
         console.error("Failed to save session:", data.message);
         toast.error("Failed to save session data");

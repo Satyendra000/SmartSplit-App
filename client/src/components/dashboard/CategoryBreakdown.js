@@ -19,24 +19,6 @@ const CategoryBreakdown = ({ toast }) => {
     setShowModal(true);
   };
 
-  const handleDeleteCategory = () => {
-    if (selectedCategory) {
-      setData((prevData) => {
-        const newData = prevData.filter(
-          (item) => item.name !== selectedCategory.name,
-        );
-        const newTotal = newData.reduce((sum, item) => sum + item.amount, 0);
-        return newData.map((item) => ({
-          ...item,
-          value: Math.round((item.amount / newTotal) * 100),
-        }));
-      });
-      toast.success(`${selectedCategory.name} category removed successfully`);
-      setShowModal(false);
-      setSelectedCategory(null);
-    }
-  };
-
   const radius = 60;
   const circumference = 2 * Math.PI * radius;
   let currentOffset = 0;

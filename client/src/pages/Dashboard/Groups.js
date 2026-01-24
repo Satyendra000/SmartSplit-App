@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import API_URL from "../../config/api";
 import {
   Plus,
   MoreHorizontal,
@@ -320,7 +321,7 @@ const Groups = ({ toast }) => {
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        `http://localhost:5000/api/users/search?email=${encodeURIComponent(newMemberEmail.trim())}`,
+        `${API_URL}/api/users/search?email=${encodeURIComponent(newMemberEmail.trim())}`,
         {
           headers: {
             "Content-Type": "application/json",
