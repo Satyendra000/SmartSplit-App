@@ -42,38 +42,46 @@ const Footer = () => {
   ];
 
   const handleFeedbackSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setSubmitStatus(null);
+  e.preventDefault();
+  setLoading(true);
+  setSubmitStatus(null);
 
-    try {
-      const response = await fetch("http://localhost:5000/api/feedback", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(feedbackForm),
-      });
+  try {
+    console.log('Submitting to:', `${API_URL}/api/feedback`); // Debug log
+    
+    const response = await fetch(`${API_URL}/api/feedback`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(feedbackForm),
+      credentials: 'include', // Add this if using credentials
+    });
 
-      const data = await response.json();
-
-      if (data.success) {
-        setSubmitStatus("success");
-        setFeedbackForm({ name: "", email: "", subject: "", message: "" });
-        setTimeout(() => {
-          setShowFeedbackModal(false);
-          setSubmitStatus(null);
-        }, 2000);
-      } else {
-        setSubmitStatus("error");
-      }
-    } catch (error) {
-      console.error("Feedback submission error:", error);
-      setSubmitStatus("error");
-    } finally {
-      setLoading(false);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-  };
+
+    const data = await response.json();
+
+    if (data.success) {
+      setSubmitStatus("success");
+      setFeedbackForm({ name: "", email: "", subject: "", message: "" });
+      setTimeout(() => {
+        setShowFeedbackModal(false);
+        setSubmitStatus(null);
+      }, 2000);
+    } else {
+      setSubmitStatus("error");
+    }
+  } catch (error) {
+    console.error("Feedback submission error:", error);
+    console.error("API_URL:", API_URL); // Debug log
+    setSubmitStatus("error");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleInputChange = (e) => {
     setFeedbackForm({
