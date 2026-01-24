@@ -1,0 +1,19 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap");
+
+* {
+  margin: 0px;
+  padding: 0px;
+  box-sizing: border-box;
+}
+
+ body {
+  --bgc-color: rgb(20, 29, 47);
+  background-color: var(--bgc-color);
+}
+
+body.light {
+  --bgc-color: #f6f8ff;
+  --theme-filter: invert(0%) sepia(100%) saturate(15%) hue-rotate(237deg)
+    brightness(99%) contrast(104%);
+  background-color: var(--bgc-color);
+}
