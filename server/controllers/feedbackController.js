@@ -1,6 +1,6 @@
 const transporter = require("../config/nodeMailer");
 
-exports.submitFeedback = async (req, res) => {
+const submitFeedback = async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
 
@@ -152,7 +152,8 @@ Sent on ${new Date().toLocaleString()}
     };
 
     await transporter.sendMail(confirmationMail);
-    if(process.env.NODE_ENV === 'development') console.log("✅ Confirmation email sent to user");
+    if (process.env.NODE_ENV === "development")
+      console.log("✅ Confirmation email sent to user");
 
     res.json({
       success: true,
@@ -174,3 +175,5 @@ Sent on ${new Date().toLocaleString()}
     });
   }
 };
+
+module.exports = { submitFeedback };
