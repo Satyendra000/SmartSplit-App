@@ -14,8 +14,10 @@ const app = express();
 // Middleware
 app.use(
   cors({
-    origin: ["http://localhost:3000",
-             "https://smartsplit-nine.vercel.app/"]// Your React app URL
+    origin: [
+      "http://localhost:3000",
+      "https://smartsplit-nine.vercel.app"  // Removed trailing slash
+    ], // Added missing comma here
     credentials: true,
   })
 );
@@ -63,7 +65,6 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV}`);
