@@ -802,6 +802,9 @@ exports.updateAvatar = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating avatar:", error);
+    if (error instanceof mongoose.Error.ValidationError) {
+      console.error("Mongoose validation error:", error);
+    }
     res.status(500).json({
       success: false,
       message: error.message,
