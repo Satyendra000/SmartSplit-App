@@ -1,8 +1,5 @@
 const transporter = require("../config/nodeMailer");
 
-// @desc    Submit feedback
-// @route   POST /api/feedback
-// @access  Public
 exports.submitFeedback = async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
@@ -24,11 +21,13 @@ exports.submitFeedback = async (req, res) => {
       });
     }
 
+    console.log("📧 Attempting to send feedback email...");
+
     // Create email content
     const mailOptions = {
-      from: process.env.SENDER_EMAIL,
-      to: process.env.FEEDBACK_EMAIL || process.env.SENDER_EMAIL, // Your email
-      replyTo: email, // User's email for easy reply
+      from: process.env.SENDER_EMAIL || process.env.SMTP_USER,
+      to: process.env.FEEDBACK_EMAIL || process.env.SMTP_USER,
+      replyTo: email,
       subject: `SmartSplit Feedback: ${subject}`,
       html: `
         <!DOCTYPE html>
@@ -103,11 +102,12 @@ Sent on ${new Date().toLocaleString()}
     };
 
     // Send email
-    await transporter.sendMail(mailOptions);
+    const info = await transporter.sendMail(mailOptions);
+    console.log("✅ Feedback email sent:", info.messageId);
 
-    // Optional: Send confirmation email to user
+    // Send confirmation email to user
     const confirmationMail = {
-      from: process.env.SENDER_EMAIL,
+      from: process.env.SENDER_EMAIL || process.env.SMTP_USER,
       to: email,
       subject: "Thank you for your feedback - SmartSplit",
       html: `
@@ -120,8 +120,6 @@ Sent on ${new Date().toLocaleString()}
             .header { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); 
                       color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
             .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-            .button { display: inline-block; padding: 12px 30px; background: #f97316; 
-                      color: white; text-decoration: none; border-radius: 6px; margin-top: 20px; }
           </style>
         </head>
         <body>
@@ -154,16 +152,25 @@ Sent on ${new Date().toLocaleString()}
     };
 
     await transporter.sendMail(confirmationMail);
+    if(process.env.NODE_ENV === 'development') console.log("✅ Confirmation email sent to user");
 
     res.json({
       success: true,
       message: "Thank you! Your feedback has been sent successfully.",
     });
   } catch (error) {
-    console.error("Feedback submission error:", error);
+    console.error("❌ Feedback submission error:", error);
+
+    // More detailed error response
+    const errorMessage =
+      error.code === "EAUTH"
+        ? "Email authentication failed. Please contact support."
+        : "Failed to send feedback. Please try again later.";
+
     res.status(500).json({
       success: false,
-      message: "Failed to send feedback. Please try again later.",
+      message: errorMessage,
+      ...(process.env.NODE_ENV === "development" && { error: error.message }),
     });
   }
 };
