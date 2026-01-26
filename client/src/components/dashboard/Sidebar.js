@@ -10,6 +10,7 @@ import {
   LogOut,
   Menu,
   X,
+  User,
 } from "lucide-react";
 
 const navItems = [
@@ -36,6 +37,7 @@ const DashboardSidebar = ({
 }) => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -47,6 +49,24 @@ const DashboardSidebar = ({
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
+  };
+
+  // Check if avatar is valid (not empty, not placeholder, and not errored)
+  const hasValidAvatar =
+    avatar &&
+    avatar.trim() !== "" &&
+    !avatar.includes("placeholder") &&
+    !imageError;
+
+  // Get user initials for fallback
+  const getUserInitials = () => {
+    if (!userName || userName.trim() === "") return "?";
+
+    const nameParts = userName.trim().split(" ");
+    if (nameParts.length === 1) {
+      return nameParts[0][0].toUpperCase();
+    }
+    return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
   };
 
   return (
@@ -81,19 +101,22 @@ const DashboardSidebar = ({
         <div className="p-4 sm:p-6 border-b border-white/5">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-orange-500/30 flex-shrink-0">
-              {avatar && avatar.trim() !== "" ? (
+              {hasValidAvatar ? (
                 <img
                   src={avatar}
                   alt={userName}
                   className="h-full w-full object-cover"
+                  onError={() => setImageError(true)}
                 />
               ) : (
-                <div className="h-full w-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white font-semibold text-sm">
-                  {userName
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .toUpperCase()}
+                <div className="h-full w-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white">
+                  {userName && userName.trim() !== "" ? (
+                    <span className="font-semibold text-sm">
+                      {getUserInitials()}
+                    </span>
+                  ) : (
+                    <User className="w-5 h-5" strokeWidth={2} />
+                  )}
                 </div>
               )}
             </div>
