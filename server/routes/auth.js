@@ -19,23 +19,33 @@ const {
   getPrivacySettings,
   updatePrivacySettings,
   deleteAccount,
+  sendRegistrationOtp,
+  verifyRegistrationOtp,
+  resendRegistrationOtp,
 } = require("../controllers/authController");
-const { auth, protect } = require('../middlewares/auth');
+const { auth, protect } = require("../middlewares/auth");
 
+// Registration with OTP verification
+router.post("/send-registration-otp", sendRegistrationOtp);
+router.post("/verify-registration-otp", verifyRegistrationOtp);
+router.post("/resend-registration-otp", resendRegistrationOtp);
+
+// Old registration route (deprecated)
 router.post("/register", register);
+
 router.post("/login", login);
 router.get("/me", auth, getMe);
 
-router.post('/send-reset-otp', sendResetOtp);
-router.post('/reset-password', resetPassword);
+router.post("/send-reset-otp", sendResetOtp);
+router.post("/reset-password", resetPassword);
 
-router.put('/change-password', protect, changePassword);
+router.put("/change-password", protect, changePassword);
 
-router.post('/verify-2fa-otp', verifyTwoFactorOtp);
-router.post('/resend-2fa-otp', resendTwoFactorOtp);
+router.post("/verify-2fa-otp", verifyTwoFactorOtp);
+router.post("/resend-2fa-otp", resendTwoFactorOtp);
 
-router.put('/toggle-2fa', protect, toggleTwoFactor);
-router.get('/2fa-status', protect, getTwoFactorStatus);
+router.put("/toggle-2fa", protect, toggleTwoFactor);
+router.get("/2fa-status", protect, getTwoFactorStatus);
 
 router.get("/budget", protect, getMonthlyBudget);
 router.put("/budget", protect, setMonthlyBudget);
