@@ -37,10 +37,10 @@ const sendEmail = async (to, subject, html) => {
   }
 };
 
-// @desc    Register new user
-// @route   POST /api/auth/register
+// @desc    Send registration OTP
+// @route   POST /api/auth/send-registration-otp
 // @access  Public
-exports.register = async (req, res) => {
+exports.sendRegistrationOtp = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
@@ -52,7 +52,14 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Check if user exists
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
+    }
+
+    // Check if user already exists
     const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(400).json({
@@ -61,16 +68,110 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Hash password
+    // Generate 6-digit OTP
+    const OTP = String(Math.floor(100000 + Math.random() * 900000));
+
+    // Create temporary unverified user
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user
-    const user = await User.create({
-      name,
+    // Store registration data temporarily in user document
+    let tempUser = await User.findOne({ email, isVerified: false });
+
+    if (tempUser) {
+      // Update existing unverified user
+      tempUser.name = name;
+      tempUser.password = hashedPassword;
+      tempUser.registrationOtp = OTP;
+      tempUser.registrationOtpExpireAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+      await tempUser.save();
+    } else {
+      // Create new temporary user
+      tempUser = await User.create({
+        name,
+        email,
+        password: hashedPassword,
+        registrationOtp: OTP,
+        registrationOtpExpireAt: Date.now() + 10 * 60 * 1000,
+        isVerified: false,
+      });
+    }
+
+    // Send OTP email
+    const emailSent = await sendEmail(
       email,
-      password: hashedPassword,
+      "Verify Your Email - SmartSplit",
+      OTP_VERIFICATION_TEMPLATE(OTP, name),
+    );
+
+    if (!emailSent) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send verification email. Please try again.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Verification code sent to your email",
+      data: {
+        email: email,
+      },
     });
+  } catch (error) {
+    console.error("Send registration OTP error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Verify registration OTP and complete registration
+// @route   POST /api/auth/verify-registration-otp
+// @access  Public
+exports.verifyRegistrationOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and OTP are required",
+      });
+    }
+
+    // Find unverified user
+    const user = await User.findOne({ email, isVerified: false });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Registration not found or already verified",
+      });
+    }
+
+    // Verify OTP
+    if (!user.registrationOtp || user.registrationOtp !== otp) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid verification code",
+      });
+    }
+
+    // Check if OTP expired
+    if (user.registrationOtpExpireAt < Date.now()) {
+      return res.status(401).json({
+        success: false,
+        message: "Verification code has expired",
+      });
+    }
+
+    // Mark user as verified
+    user.isVerified = true;
+    user.registrationOtp = "";
+    user.registrationOtpExpireAt = 0;
+    await user.save();
 
     // Send welcome email
     await sendEmail(
@@ -84,7 +185,7 @@ exports.register = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "User registered successfully",
+      message: "Email verified successfully! Welcome to SmartSplit",
       data: {
         id: user._id,
         name: user.name,
@@ -94,12 +195,81 @@ exports.register = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Registration error:", error);
+    console.error("Verify registration OTP error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
     });
   }
+};
+
+// @desc    Resend registration OTP
+// @route   POST /api/auth/resend-registration-otp
+// @access  Public
+exports.resendRegistrationOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    // Find unverified user
+    const user = await User.findOne({ email, isVerified: false });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Registration not found or already verified",
+      });
+    }
+
+    // Generate new OTP
+    const OTP = String(Math.floor(100000 + Math.random() * 900000));
+
+    user.registrationOtp = OTP;
+    user.registrationOtpExpireAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    await user.save();
+
+    // Send OTP email
+    const emailSent = await sendEmail(
+      user.email,
+      "New Verification Code - SmartSplit",
+      OTP_VERIFICATION_TEMPLATE(OTP, user.name),
+    );
+
+    if (!emailSent) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send verification email. Please try again.",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "New verification code sent to your email",
+    });
+  } catch (error) {
+    console.error("Resend registration OTP error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Register new user (DEPRECATED - Use sendRegistrationOtp instead)
+// @route   POST /api/auth/register
+// @access  Public
+exports.register = async (req, res) => {
+  // Redirect to new OTP-based registration
+  return res.status(400).json({
+    success: false,
+    message: "Please use /api/auth/send-registration-otp to register",
+  });
 };
 
 // @desc    Login user
@@ -124,6 +294,14 @@ exports.login = async (req, res) => {
       });
     }
 
+    // Check if email is verified
+    if (!user.isVerified) {
+      return res.status(401).json({
+        success: false,
+        message: "Please verify your email before logging in",
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({
@@ -132,16 +310,14 @@ exports.login = async (req, res) => {
       });
     }
 
-    // ✅ CHECK IF 2FA IS ENABLED
+    // CHECK IF 2FA IS ENABLED
     if (user.twoFactorEnabled) {
-      // Generate 6-digit OTP
       const OTP = String(Math.floor(100000 + Math.random() * 900000));
 
       user.twoFactorOtp = OTP;
-      user.twoFactorOtpExpireAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+      user.twoFactorOtpExpireAt = Date.now() + 10 * 60 * 1000;
       await user.save();
 
-      // Send OTP via email using SendGrid
       const emailSent = await sendEmail(
         user.email,
         "Login Verification Code - SmartSplit",
@@ -170,7 +346,7 @@ exports.login = async (req, res) => {
       });
     }
 
-    // ✅ IF 2FA NOT ENABLED, LOGIN DIRECTLY
+    // IF 2FA NOT ENABLED, LOGIN DIRECTLY
     const token = generateToken(user._id);
 
     res.json({
@@ -232,7 +408,6 @@ exports.sendResetOtp = async (req, res) => {
     user.resetOtpExpireAt = Date.now() + 10 * 60 * 1000;
     await user.save();
 
-    // Send reset email using SendGrid
     const emailSent = await sendEmail(
       user.email,
       "Reset Your Password - SmartSplit",
@@ -281,7 +456,6 @@ exports.resetPassword = async (req, res) => {
       return res.json({ success: false, message: "OTP has expired" });
     }
 
-    // Hash new password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
@@ -318,7 +492,6 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    // Get user with password field
     const user = await User.findById(req.user.id).select("+password");
 
     if (!user) {
@@ -328,7 +501,6 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    // Verify current password
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
       return res.status(401).json({
@@ -337,7 +509,6 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    // Hash new password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
@@ -396,12 +567,10 @@ exports.verifyTwoFactorOtp = async (req, res) => {
       });
     }
 
-    // Clear OTP after successful verification
     user.twoFactorOtp = "";
     user.twoFactorOtpExpireAt = 0;
     await user.save();
 
-    // Generate token
     const token = generateToken(user._id);
 
     res.json({
@@ -443,8 +612,6 @@ exports.toggleTwoFactor = async (req, res) => {
     }
 
     user.twoFactorEnabled = enabled;
-
-    // Clear any existing OTP when toggling
     user.twoFactorOtp = "";
     user.twoFactorOtpExpireAt = 0;
 
@@ -515,14 +682,12 @@ exports.resendTwoFactorOtp = async (req, res) => {
       });
     }
 
-    // Generate new OTP
     const OTP = String(Math.floor(100000 + Math.random() * 900000));
 
     user.twoFactorOtp = OTP;
-    user.twoFactorOtpExpireAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    user.twoFactorOtpExpireAt = Date.now() + 10 * 60 * 1000;
     await user.save();
 
-    // Send OTP using SendGrid
     const emailSent = await sendEmail(
       user.email,
       "SmartSplit - New Login Verification Code",
@@ -553,7 +718,6 @@ exports.setMonthlyBudget = async (req, res) => {
   try {
     const { monthlyBudget } = req.body;
 
-    // Validation
     if (monthlyBudget === undefined || monthlyBudget === null) {
       return res.status(400).json({
         success: false,
@@ -568,7 +732,6 @@ exports.setMonthlyBudget = async (req, res) => {
       });
     }
 
-    // Update user's monthly budget
     const user = await User.findById(req.user.id);
 
     if (!user) {
@@ -632,7 +795,6 @@ exports.updateAvatar = async (req, res) => {
       });
     }
 
-    // Validate base64 image
     if (!avatar.startsWith("data:image/")) {
       return res.status(400).json({
         success: false,
@@ -640,7 +802,6 @@ exports.updateAvatar = async (req, res) => {
       });
     }
 
-    // Check image size (base64 is ~33% larger, so 5MB image = ~6.7MB base64)
     const sizeInMB = (avatar.length * 3) / 4 / (1024 * 1024);
     if (sizeInMB > 7) {
       return res.status(400).json({
@@ -658,7 +819,6 @@ exports.updateAvatar = async (req, res) => {
       });
     }
 
-    // Update avatar
     user.avatar = avatar;
     await user.save();
 
@@ -689,7 +849,6 @@ exports.removeAvatar = async (req, res) => {
       });
     }
 
-    // Reset to default avatar
     user.avatar = "https://via.placeholder.com/150";
     await user.save();
 
@@ -709,7 +868,6 @@ exports.removeAvatar = async (req, res) => {
   }
 };
 
-// Update user profile
 exports.updateProfile = async (req, res) => {
   try {
     const { name, email, phone, bio } = req.body;
@@ -739,7 +897,6 @@ exports.updateProfile = async (req, res) => {
       }
     }
 
-    // Check if email is already taken
     if (email !== req.user.email) {
       const existingUser = await User.findOne({ email });
       if (existingUser) {
@@ -784,7 +941,6 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
-// Get privacy settings
 exports.getPrivacySettings = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -814,7 +970,6 @@ exports.getPrivacySettings = async (req, res) => {
   }
 };
 
-// Update privacy settings
 exports.updatePrivacySettings = async (req, res) => {
   try {
     const {
@@ -855,7 +1010,6 @@ exports.updatePrivacySettings = async (req, res) => {
   }
 };
 
-// Delete account permanently
 exports.deleteAccount = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -868,18 +1022,15 @@ exports.deleteAccount = async (req, res) => {
       });
     }
 
-    // Delete all user's expenses
     await Expense.deleteMany({
       $or: [{ paidBy: userId }, { "splits.user": userId }],
     });
 
-    // Remove user from all groups
     await Group.updateMany(
       { "members.user": userId },
       { $pull: { members: { user: userId } } },
     );
 
-    // Handle groups created by user
     const userGroups = await Group.find({ createdBy: userId });
     for (const group of userGroups) {
       if (group.members.length <= 1) {
@@ -895,7 +1046,6 @@ exports.deleteAccount = async (req, res) => {
       }
     }
 
-    // Delete the user account
     await User.findByIdAndDelete(userId);
 
     res.json({
