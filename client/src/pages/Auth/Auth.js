@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Key,
   RefreshCw,
+  CheckCircle,
 } from "lucide-react";
 import Footer from "../../components/common/Footer";
 
@@ -21,6 +22,11 @@ const Auth = ({ toast }) => {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Email verification state
+  const [requiresEmailVerification, setRequiresEmailVerification] =
+    useState(false);
+  const [emailVerificationOtp, setEmailVerificationOtp] = useState("");
 
   // 2FA state
   const [requires2FA, setRequires2FA] = useState(false);
@@ -59,38 +65,130 @@ const Auth = ({ toast }) => {
     }
 
     try {
-      const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
-      const payload = isLogin
-        ? { email: formData.email, password: formData.password }
-        : formData;
+      if (isLogin) {
+        // LOGIN FLOW
+        const response = await fetch(`${API_URL}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+          }),
+        });
 
-      const response = await fetch(`${API_URL}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+        const data = await response.json();
+
+        if (data.success) {
+          if (data.requiresTwoFactor) {
+            setRequires2FA(true);
+            setUserEmail(formData.email);
+            setError("");
+          } else {
+            localStorage.setItem("token", data.data.token);
+            localStorage.setItem("user", JSON.stringify(data.data));
+            localStorage.setItem("userName", data.data.name);
+            localStorage.setItem("userEmail", data.data.email);
+            navigate("/dashboard/personal");
+          }
+        } else {
+          toast.error(data.message || "Authentication failed");
+        }
+      } else {
+        // REGISTRATION FLOW - Send OTP
+        const response = await fetch(
+          `${API_URL}/api/auth/send-registration-otp`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(formData),
+          },
+        );
+
+        const data = await response.json();
+
+        if (data.success) {
+          setRequiresEmailVerification(true);
+          setUserEmail(formData.email);
+          toast.success("Verification code sent to your email!");
+        } else {
+          toast.error(data.message || "Registration failed");
+        }
+      }
+    } catch (err) {
+      toast.error("Failed to connect. Ensure backend is running.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Email Verification OTP
+  const handleVerifyEmail = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    if (!emailVerificationOtp.trim()) {
+      toast.error("Please enter the verification code");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/auth/verify-registration-otp`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: userEmail,
+            otp: emailVerificationOtp,
+          }),
+        },
+      );
 
       const data = await response.json();
 
       if (data.success) {
-        // CHECK IF 2FA IS REQUIRED
-        if (data.requiresTwoFactor) {
-          setRequires2FA(true);
-          setUserEmail(formData.email);
-          setError("");
-        } else {
-          // Normal login flow
-          localStorage.setItem("token", data.data.token);
-          localStorage.setItem("user", JSON.stringify(data.data));
-          localStorage.setItem("userName", data.data.name);
-          localStorage.setItem("userEmail", data.data.email);
-          navigate("/dashboard/personal");
-        }
+        toast.success("Email verified successfully! Welcome to SmartSplit!");
+        localStorage.setItem("token", data.data.token);
+        localStorage.setItem("user", JSON.stringify(data.data));
+        localStorage.setItem("userName", data.data.name);
+        localStorage.setItem("userEmail", data.data.email);
+        navigate("/dashboard/personal");
       } else {
-        toast.error(data.message || "Authentication failed");
+        toast.error(data.message || "Verification failed");
       }
     } catch (err) {
-      toast.error("Failed to connect. Ensure backend is running.");
+      toast.error("Failed to verify code. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend Email Verification OTP
+  const handleResendEmailVerification = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/auth/resend-registration-otp`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: userEmail }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success("New verification code sent to your email!");
+      } else {
+        toast.error(data.message || "Failed to resend code");
+      }
+    } catch (err) {
+      toast.error("Failed to resend code. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -166,6 +264,22 @@ const Auth = ({ toast }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleBackToRegistration = () => {
+    confirm({
+      title: "Cancel Verification?",
+      message:
+        "Are you sure you want to go back? You will need to register again.",
+      confirmText: "Yes, Go Back",
+      cancelText: "Stay Here",
+      type: "warning",
+      onConfirm: () => {
+        setRequiresEmailVerification(false);
+        setEmailVerificationOtp("");
+        setError("");
+      },
+    });
+  };
+
   const handleBackToLogin = () => {
     confirm({
       title: "Cancel Verification?",
@@ -198,7 +312,133 @@ const Auth = ({ toast }) => {
     }
   };
 
-  // IF 2FA IS REQUIRED, SHOW OTP FORM
+  // EMAIL VERIFICATION SCREEN
+  if (requiresEmailVerification) {
+    return (
+      <>
+        <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6 relative overflow-hidden">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-orange-500/10 rounded-full blur-[120px] animate-pulse"></div>
+          <div
+            className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-600/10 rounded-full blur-[120px] animate-pulse"
+            style={{ animationDelay: "2s" }}
+          ></div>
+          <div className="absolute inset-0 opacity-[0.02]">
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)`,
+                backgroundSize: "50px 50px",
+              }}
+            ></div>
+          </div>
+
+          <div className="relative z-10 w-full max-w-md">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center mb-4">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-orange-500/20 rounded-xl blur-xl"></div>
+                  <div className="relative w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-2xl shadow-orange-500/20 flex items-center justify-center">
+                    <Mail className="w-9 h-9 text-white" strokeWidth={1.5} />
+                  </div>
+                </div>
+              </div>
+              <h1 className="text-4xl font-bold text-white mb-2">
+                Smart<span className="text-orange-500">Split</span>
+              </h1>
+              <p className="text-white/50 text-sm">
+                Email verification required
+              </p>
+            </div>
+
+            <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/5 overflow-hidden shadow-2xl p-8">
+              <div className="mb-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <CheckCircle className="w-6 h-6 text-green-500" />
+                  <h2 className="text-2xl font-bold text-white">
+                    Verify Your Email
+                  </h2>
+                </div>
+                <p className="text-white/50 text-sm">
+                  We've sent a 6-digit code to{" "}
+                  <strong className="text-white">{userEmail}</strong>
+                </p>
+              </div>
+
+              {error && (
+                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-400">{error}</p>
+                </div>
+              )}
+
+              <form onSubmit={handleVerifyEmail} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-semibold text-white/70 mb-2">
+                    Verification Code
+                  </label>
+                  <div className="relative">
+                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
+                    <input
+                      type="text"
+                      value={emailVerificationOtp}
+                      onChange={(e) => setEmailVerificationOtp(e.target.value)}
+                      placeholder="Enter 6-digit code"
+                      maxLength={6}
+                      required
+                      className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-orange-500/50 focus:bg-white/10 transition-all text-center text-2xl tracking-widest"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-lg transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-orange-500/20"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Verify & Create Account</span>
+                      <ArrowRight className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-6 flex items-center justify-between">
+                <button
+                  onClick={handleResendEmailVerification}
+                  disabled={loading}
+                  className="text-sm text-orange-500 hover:text-orange-400 font-medium transition-colors flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Resend Code
+                </button>
+                <button
+                  onClick={handleBackToRegistration}
+                  className="text-sm text-white/60 hover:text-white font-medium transition-colors"
+                >
+                  Back to registration
+                </button>
+              </div>
+            </div>
+
+            <p className="text-center text-white/30 text-xs mt-6">
+              Code expires in 10 minutes
+            </p>
+          </div>
+        </div>
+        <Footer />
+        <ConfirmModal />
+      </>
+    );
+  }
+
+  // 2FA VERIFICATION SCREEN
   if (requires2FA) {
     return (
       <>
@@ -208,7 +448,6 @@ const Auth = ({ toast }) => {
             className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-600/10 rounded-full blur-[120px] animate-pulse"
             style={{ animationDelay: "2s" }}
           ></div>
-
           <div className="absolute inset-0 opacity-[0.02]">
             <div
               className="absolute inset-0"
@@ -328,7 +567,6 @@ const Auth = ({ toast }) => {
           className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-600/10 rounded-full blur-[120px] animate-pulse"
           style={{ animationDelay: "2s" }}
         ></div>
-
         <div className="absolute inset-0 opacity-[0.02]">
           <div
             className="absolute inset-0"
@@ -364,11 +602,7 @@ const Auth = ({ toast }) => {
                   setIsLogin(true);
                   setError("");
                 }}
-                className={`flex-1 py-4 px-6 font-semibold transition-all ${
-                  isLogin
-                    ? "text-white bg-white/5 border-b-2 border-orange-500"
-                    : "text-white/50 hover:text-white/70"
-                }`}
+                className={`flex-1 py-4 px-6 font-semibold transition-all ${isLogin ? "text-white bg-white/5 border-b-2 border-orange-500" : "text-white/50 hover:text-white/70"}`}
               >
                 Sign In
               </button>
@@ -377,11 +611,7 @@ const Auth = ({ toast }) => {
                   setIsLogin(false);
                   setError("");
                 }}
-                className={`flex-1 py-4 px-6 font-semibold transition-all ${
-                  !isLogin
-                    ? "text-white bg-white/5 border-b-2 border-orange-500"
-                    : "text-white/50 hover:text-white/70"
-                }`}
+                className={`flex-1 py-4 px-6 font-semibold transition-all ${!isLogin ? "text-white bg-white/5 border-b-2 border-orange-500" : "text-white/50 hover:text-white/70"}`}
               >
                 Sign Up
               </button>
@@ -472,7 +702,6 @@ const Auth = ({ toast }) => {
                       )}
                     </button>
                   </div>
-                  {/* Forgot Password Link - Only in Login Mode */}
                   {isLogin && (
                     <div className="flex justify-end mt-2">
                       <button
