@@ -9,18 +9,36 @@ connectDB();
 const app = express();
 
 // CORS Configuration
-app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "https://smartsplit-nine.vercel.app",
-    "https://smartsplit-app.vercel.app",
-    "https://smartsplit-app.netlify.app",
-    process.env.FRONTEND_URL
-  ].filter(Boolean),
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      "http://localhost:3000",
+      "https://smartsplit-nine.vercel.app",
+      "https://smartsplit-app.vercel.app",
+      "https://smartsplit-app.netlify.app",
+      process.env.FRONTEND_URL
+    ].filter(Boolean);
+    
+    // Allow requests with no origin (like mobile apps or Postman)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200,
+  preflightContinue: false
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
 
 
 
