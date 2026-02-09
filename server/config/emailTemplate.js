@@ -520,7 +520,7 @@ exports.SETTLEMENT_NOTIFICATION_TEMPLATE = (
                     <!-- Footer -->
                     <tr>
                         <td style="background: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
-                            <a href="http://localhost:3000/dashboard/split?session=${sessionId}" style="display: inline-block; background: #0f172a; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600;">
+                            <a href="https://smartsplit-nine.vercel.app/dashboard/split?session=${sessionId}" style="display: inline-block; background: #0f172a; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600;">
                                 Open Dashboard
                             </a>
                             <p style="margin: 20px 0 0 0; color: #94a3b8; font-size: 12px;">
