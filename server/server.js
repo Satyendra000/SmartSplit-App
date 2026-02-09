@@ -11,8 +11,11 @@ const app = express();
 // CORS Configuration
 app.use(cors({
   origin: [
-    "http://localhost:3000"
-  ],
+    "http://localhost:3000",
+    "https://smartsplit-app.vercel.app",
+    "https://smartsplit-app.netlify.app",
+    process.env.FRONTEND_URL
+  ].filter(Boolean),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
