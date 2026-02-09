@@ -4,7 +4,7 @@ export const useToast = () => {
   const [toasts, setToasts] = useState([]);
 
   const addToast = (type, message, duration = 5000) => {
-    const id = Date.now();
+    const id = Date.now() + Math.random().toString(36).substr(2, 9);
     setToasts((prev) => [...prev, { id, type, message }]);
 
     if (duration > 0) {

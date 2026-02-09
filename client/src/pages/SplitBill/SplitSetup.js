@@ -9,10 +9,14 @@ const SplitSetup = ({ toast }) => {
   const navigate = useNavigate();
   const { confirm, ConfirmModal } = useConfirm();
   const [participants, setParticipants] = useState([""]);
+  const [participantEmails, setParticipantEmails] = useState([""]);
   const [groupName, setGroupName] = useState("");
   const [duration, setDuration] = useState(7);
 
-  const addParticipant = () => setParticipants([...participants, ""]);
+  const addParticipant = () => {
+    setParticipants([...participants, ""]);
+    setParticipantEmails([...participantEmails, ""]);
+  };
 
   const removeParticipant = (index) => {
     if (participants.length > 1) {
@@ -24,6 +28,7 @@ const SplitSetup = ({ toast }) => {
         type: "warning",
         onConfirm: () => {
           setParticipants(participants.filter((_, i) => i !== index));
+          setParticipantEmails(participantEmails.filter((_, i) => i !== index));
         },
       });
     }
@@ -33,6 +38,12 @@ const SplitSetup = ({ toast }) => {
     const updated = [...participants];
     updated[index] = value;
     setParticipants(updated);
+  };
+
+  const updateParticipantEmail = (index, value) => {
+    const updated = [...participantEmails];
+    updated[index] = value;
+    setParticipantEmails(updated);
   };
 
   const generateSessionId = () => {
@@ -55,6 +66,7 @@ const SplitSetup = ({ toast }) => {
 
     try {
       // Use backend API instead of localStorage
+      // const baseUrl = API_URL.endsWith("/") ? API_URL.slice(0, -1) : API_URL;
       const response = await fetch(`${API_URL}/api/sessions/create`, {
         method: "POST",
         headers: {
@@ -99,7 +111,17 @@ const SplitSetup = ({ toast }) => {
     );
 
     if (sessionId) {
-      toast.success("Split group created successfully!");
+
+      // Store admin rights for this session
+      localStorage.setItem(`split_session_admin_${sessionId}`, "true");
+
+      // Store participant emails for notifications
+      const emailMap = validParticipants.map((name, index) => ({
+        name,
+        email: participantEmails[index] || "",
+      })).filter(p => p.email.trim() !== "");
+      localStorage.setItem(`split_session_emails_${sessionId}`, JSON.stringify(emailMap));
+
       // Navigate to dashboard with session ID
       navigate(`/dashboard/split?session=${sessionId}`);
     } else {
@@ -180,22 +202,31 @@ const SplitSetup = ({ toast }) => {
               </label>
               <div className="space-y-3 mb-4">
                 {participants.map((participant, index) => (
-                  <div key={index} className="flex gap-2">
+                  <div key={index} className="space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={participant}
+                        onChange={(e) => updateParticipant(index, e.target.value)}
+                        placeholder={`Person ${index + 1}`}
+                        className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-orange-500/50 focus:bg-white/10 transition-all"
+                      />
+                      {participants.length > 1 && (
+                        <button
+                          onClick={() => removeParticipant(index)}
+                          className="px-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-lg transition-all"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
                     <input
-                      type="text"
-                      value={participant}
-                      onChange={(e) => updateParticipant(index, e.target.value)}
-                      placeholder={`Person ${index + 1}`}
-                      className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-orange-500/50 focus:bg-white/10 transition-all"
+                      type="email"
+                      value={participantEmails[index] || ""}
+                      onChange={(e) => updateParticipantEmail(index, e.target.value)}
+                      placeholder="📧 Email (optional, for notifications)"
+                      className="w-full px-4 py-2.5 ml-4 bg-white/[0.02] border border-white/5 rounded-lg text-white/70 placeholder-white/20 focus:outline-none focus:border-yellow-500/30 focus:bg-white/5 transition-all text-sm italic"
                     />
-                    {participants.length > 1 && (
-                      <button
-                        onClick={() => removeParticipant(index)}
-                        className="px-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-lg transition-all"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    )}
                   </div>
                 ))}
               </div>

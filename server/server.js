@@ -11,58 +11,61 @@ const app = express();
 // CORS Configuration
 app.use(cors({
   origin: [
-    "http://localhost:3000",
-    "https://smartsplit-nine.vercel.app"
+    "http://localhost:3000"
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes with debug logging
-console.log('📍 Registering routes...');
+if (process.env.NODE_ENV === 'development') {
+  console.log('📍 Registering routes...');
+}
 
 try {
   app.use('/api/auth', require('./routes/auth'));
-  console.log('✅ Auth route registered');
+  if (process.env.NODE_ENV === 'development') console.log('✅ Auth route registered');
 } catch (err) {
   console.error('❌ Auth route error:', err.message);
 }
 
 try {
   app.use('/api/expenses', require('./routes/expenses'));
-  console.log('✅ Expenses route registered');
+  if (process.env.NODE_ENV === 'development') console.log('✅ Expenses route registered');
 } catch (err) {
   console.error('❌ Expenses route error:', err.message);
 }
 
 try {
   app.use('/api/groups', require('./routes/groups'));
-  console.log('✅ Groups route registered');
+  if (process.env.NODE_ENV === 'development') console.log('✅ Groups route registered');
 } catch (err) {
   console.error('❌ Groups route error:', err.message);
 }
 
 try {
   app.use('/api/users', require('./routes/users'));
-  console.log('✅ Users route registered');
+  if (process.env.NODE_ENV === 'development') console.log('✅ Users route registered');
 } catch (err) {
   console.error('❌ Users route error:', err.message);
 }
 
 try {
   app.use('/api/feedback', require('./routes/feedback'));
-  console.log('✅ Feedback route registered');
+  if (process.env.NODE_ENV === 'development') console.log('✅ Feedback route registered');
 } catch (err) {
   console.error('❌ Feedback route error:', err.message);
 }
 
 try {
   app.use('/api/sessions', require('./routes/session'));
-  console.log('✅ Sessions route registered');
+  if (process.env.NODE_ENV === 'development') console.log('✅ Sessions route registered');
 } catch (err) {
   console.error('❌ Sessions route error:', err.message);
 }
@@ -101,6 +104,8 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV}`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🚀 Server is running on port ${PORT}`);
+    console.log(`📍 Environment: ${process.env.NODE_ENV}`);
+  }
 });

@@ -332,7 +332,7 @@ const Groups = ({ toast }) => {
 
       const data = await response.json();
       if (process.env.NODE_ENV === "development")
-        console.log("Search response:", data);
+
 
       if (data.success && data.data) {
         // Check if user is already a member

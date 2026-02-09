@@ -204,8 +204,6 @@ const Expenses = ({toast}) => {
         ],
       };
 
-      if (process.env.NODE_ENV === "development") 
-        console.log("Sending expense data:", expenseData);
 
       const response = await fetch(`${API_URL}/api/expenses`, {
         method: "POST",
@@ -217,8 +215,6 @@ const Expenses = ({toast}) => {
       });
 
       const data = await response.json();
-      if (process.env.NODE_ENV === "development")
-        console.log("Response:", data);
 
       if (data.success) {
         setShowAddModal(false);

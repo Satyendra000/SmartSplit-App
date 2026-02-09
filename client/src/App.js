@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import API_URL from "./config/api";
 import {
   BrowserRouter as Router,
@@ -289,6 +289,7 @@ const Dashboard = ({ appMode, toast }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { confirm, ConfirmModal } = useConfirm();
+  const loadedSessionRef = useRef(null);
 
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
@@ -304,11 +305,20 @@ const Dashboard = ({ appMode, toast }) => {
   const [sessionInfo, setSessionInfo] = useState(null);
   const [settledPayments, setSettledPayments] = useState([]);
   const [updateTrigger, setUpdateTrigger] = useState(0); // Force re-render trigger
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Load session data from backend
   const loadSessionData = async (sessionId) => {
+    // Prevent duplicate loading of the same session
+    if (loadedSessionRef.current === sessionId) return;
+    loadedSessionRef.current = sessionId;
+
     try {
       setLoading(true);
+      
+      // Check admin rights from localStorage
+      const adminFlag = localStorage.getItem(`split_session_admin_${sessionId}`);
+      setIsAdmin(adminFlag === "true");
 
       // Fetch from backend API
       const response = await fetch(`${API_URL}/api/sessions/${sessionId}`);
@@ -445,13 +455,11 @@ const Dashboard = ({ appMode, toast }) => {
         date: new Date().toISOString(),
         splits:
           expenseType === "shared"
-            ? [...participants.filter((p) => p !== paidBy), paidBy].map(
-                (person) => ({
-                  userName: person,
-                  amount: Number.parseFloat(amount) / (participants.length + 1),
-                  paid: person === paidBy,
-                }),
-              )
+            ? participants.map((person) => ({
+                userName: person,
+                amount: Number.parseFloat(amount) / participants.length,
+                paid: person === paidBy,
+              }))
             : [],
       };
 
@@ -479,7 +487,7 @@ const Dashboard = ({ appMode, toast }) => {
       setLoading(true);
       const splitWith =
         expenseType === "shared"
-          ? [paidBy, ...participants.filter((p) => p !== paidBy)]
+          ? participants
           : [];
 
       const expenseData = {
@@ -514,6 +522,52 @@ const Dashboard = ({ appMode, toast }) => {
     }
   };
 
+  // Handle Delete Expense
+  const handleDeleteExpense = async (expenseId) => {
+    if (!isAdmin) {
+      toast.error("Only admin can delete expenses");
+      return;
+    }
+
+    confirm({
+      title: "Delete Expense?",
+      message: "Are you sure you want to delete this expense?",
+      confirmText: "Yes, Delete",
+      cancelText: "Cancel",
+      type: "danger",
+      onConfirm: async () => {
+        const updatedExpenses = expenses.filter((exp) => exp._id !== expenseId);
+        setExpenses(updatedExpenses);
+
+        if (currentSessionId) {
+          await saveSessionData(
+            currentSessionId,
+            updatedExpenses,
+            settledPayments
+          );
+        }
+        toast.success("Expense deleted successfully");
+      },
+    });
+  };
+
+  // Handle Edit Expense
+  const handleEditExpense = async (updatedExpense) => {
+    const updatedExpenses = expenses.map((exp) =>
+      exp._id === updatedExpense._id ? updatedExpense : exp
+    );
+    setExpenses(updatedExpenses);
+
+    if (currentSessionId) {
+      await saveSessionData(
+        currentSessionId,
+        updatedExpenses,
+        settledPayments
+      );
+    }
+    toast.success("Expense updated successfully");
+  };
+
   // Handle settlement payment
   const handleSettlementPaid = async (payment) => {
     confirm({
@@ -523,10 +577,12 @@ const Dashboard = ({ appMode, toast }) => {
       cancelText: "Cancel",
       type: "success",
       onConfirm: async () => {
-        console.log(
-          "✅ Settling payment:",
-          `${payment.from} → ${payment.to}: ₹${payment.amount}`,
-        );
+        if (process.env.NODE_ENV === "development") {
+          console.log(
+            "✅ Settling payment:",
+            `${payment.from} → ${payment.to}: ₹${payment.amount}`
+          );
+        }
 
         // Create a settlement expense to record the payment
         const settlementExpense = {
@@ -558,7 +614,9 @@ const Dashboard = ({ appMode, toast }) => {
         // Update settled payments list with stable ID
         const updatedSettlements = [...settledPayments, payment.id];
 
-        console.log("✅ Payment marked as settled:", payment.id);
+        if (process.env.NODE_ENV === "development") {
+          console.log("✅ Payment marked as settled:", payment.id);
+        }
 
         // Update states
         setExpenses(updatedExpenses);
@@ -575,6 +633,61 @@ const Dashboard = ({ appMode, toast }) => {
         }
 
         toast.success("Payment marked as settled!");
+      },
+    });
+  };
+
+  const handleNotifySettlement = async () => {
+    if (!currentSessionId) {
+      toast.error("No active session");
+      return;
+    }
+
+    // Get stored emails from localStorage
+    const storedEmails = localStorage.getItem(`split_session_emails_${currentSessionId}`);
+    const participantEmails = storedEmails ? JSON.parse(storedEmails) : [];
+
+    confirm({
+      title: "Send Settlement Reminders?",
+      message: participantEmails.length === 0 
+        ? "No email addresses available. Please add emails when creating the session."
+        : "This will send email notifications to participants who owe money and have email addresses. Continue?",
+      confirmText: participantEmails.length === 0 ? "OK" : "Yes, Send Reminders",
+      cancelText: participantEmails.length === 0 ? null : "Cancel",
+      type: participantEmails.length === 0 ? "warning" : "info",
+      onConfirm: async () => {
+        if (participantEmails.length === 0) {
+          return; // Just close the dialog
+        }
+
+        try {
+          setLoading(true);
+          const settlements = calculateSimplifiedSettlements(expenses, allParticipants);
+
+          const response = await fetch(`${API_URL}/api/sessions/${currentSessionId}/notify`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              settlements,
+              participantEmails,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            toast.success(data.message || "Reminders sent successfully!");
+          } else {
+            toast.error(data.message || "Failed to send reminders");
+          }
+        } catch (error) {
+          console.error("Error sending reminders:", error);
+          toast.error("Failed to send reminders. Please try again.");
+        } finally {
+          setLoading(false);
+        }
       },
     });
   };
@@ -728,6 +841,10 @@ const Dashboard = ({ appMode, toast }) => {
               onSettlementPaid={handleSettlementPaid}
               settledPayments={settledPayments}
               updateTrigger={updateTrigger}
+              isAdmin={isAdmin}
+              onDeleteExpense={handleDeleteExpense}
+              onEditExpense={handleEditExpense}
+              onNotifySettlement={handleNotifySettlement}
               key={`main-${updateTrigger}`}
             />
           </div>

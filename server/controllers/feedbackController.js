@@ -20,7 +20,8 @@ const submitFeedback = async (req, res) => {
       });
     }
 
-    console.log("📧 Attempting to send feedback email via SendGrid...");
+    if (process.env.NODE_ENV === 'development')
+      console.log("📧 Attempting to send feedback email via SendGrid...");
 
     // Email to you (feedback notification)
     const feedbackMsg = {
@@ -96,7 +97,7 @@ Sent on ${new Date().toLocaleString()}
     };
 
     await sgMail.send(feedbackMsg);
-    console.log("✅ Feedback email sent via SendGrid");
+    if (process.env.NODE_ENV === 'development') console.log("✅ Feedback email sent via SendGrid");
 
     // Confirmation email to user
     const confirmationMsg = {
@@ -141,7 +142,7 @@ Sent on ${new Date().toLocaleString()}
     };
 
     await sgMail.send(confirmationMsg);
-    console.log("✅ Confirmation email sent to user via SendGrid");
+    if (process.env.NODE_ENV === 'development') console.log("✅ Confirmation email sent to user via SendGrid");
 
     res.json({
       success: true,

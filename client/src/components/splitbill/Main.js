@@ -9,10 +9,14 @@ import {
   ArrowDownRight,
   CheckCircle,
   Check,
+  Edit2,
+  Trash2,
+  Bell,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import NetworkGraph from "./NetworkGraph";
 import Reports from "./Reports";
+import EditExpenseModal from "./EditExpenseModal";
 
 const MainContent = ({
   activities,
@@ -26,10 +30,15 @@ const MainContent = ({
   onSettlementPaid,
   settledPayments = [],
   updateTrigger = 0,
+  isAdmin = false,
+  onDeleteExpense,
+  onEditExpense,
+  onNotifySettlement,
 }) => {
   const [showPaidAnimation, setShowPaidAnimation] = useState(null);
   const [localSettledPayments, setLocalSettledPayments] =
     useState(settledPayments);
+  const [editingExpense, setEditingExpense] = useState(null);
 
   // Update local state when props change
   useEffect(() => {
@@ -210,7 +219,7 @@ const MainContent = ({
                   <h2 className="text-xl font-bold text-white mb-1">
                     Activity
                   </h2>
-                  <p className="text-sm text-white/50">Recent transactions</p>
+                  <p className="text-sm text-white/50">Recent 10 transactions</p>
                 </div>
                 {activities && activities.length > 0 && (
                   <span className="text-xs font-semibold bg-orange-500/10 text-orange-400 px-3 py-1.5 rounded-full border border-orange-500/20">
@@ -264,6 +273,34 @@ const MainContent = ({
                               <span>{activity.time || "Just now"}</span>
                             </div>
                           </div>
+                          
+                          {/* Actions */}
+                          {!isSettlement && (
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingExpense({ ...activity, ...expenses.find(e => e._id === activity.id) });
+                                }}
+                                className="p-2 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition-colors"
+                                title="Edit Expense"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              {isAdmin && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDeleteExpense(activity.id);
+                                  }}
+                                  className="p-2 hover:bg-red-500/10 rounded-lg text-white/50 hover:text-red-400 transition-colors"
+                                  title="Delete Expense"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -354,12 +391,24 @@ const MainContent = ({
                     Optimized payment suggestions
                   </p>
                 </div>
-                {payments && payments.length > 0 && (
-                  <span className="text-xs font-semibold bg-orange-500/10 text-orange-400 px-3 py-1.5 rounded-full border border-orange-500/20">
-                    {payments.filter((p) => !isPaymentSettled(p.id)).length}{" "}
-                    pending
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {payments && payments.length > 0 && payments.filter((p) => !isPaymentSettled(p.id)).length > 0 && onNotifySettlement && (
+                    <button
+                      onClick={onNotifySettlement}
+                      className="px-3 py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/20 text-yellow-400 rounded-lg transition-all flex items-center gap-2 text-xs font-semibold"
+                      title="Send Settlement Reminders"
+                    >
+                      <Bell className="w-4 h-4" />
+                      Notify
+                    </button>
+                  )}
+                  {payments && payments.length > 0 && (
+                    <span className="text-xs font-semibold bg-orange-500/10 text-orange-400 px-3 py-1.5 rounded-full border border-orange-500/20">
+                      {payments.filter((p) => !isPaymentSettled(p.id)).length}{" "}
+                      pending
+                    </span>
+                  )}
+                </div>
               </div>
 
               {payments && payments.length > 0 ? (
@@ -448,10 +497,21 @@ const MainContent = ({
                           {!settled ? (
                             <button
                               onClick={() => handleMarkAsPaid(payment)}
-                              className="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold rounded-lg transition-all shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 flex items-center justify-center gap-2"
+                              disabled={!isAdmin}
+                              className={`w-full py-2.5 font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
+                                isAdmin
+                                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30"
+                                  : "bg-white/5 text-white/30 cursor-not-allowed"
+                              }`}
                             >
-                              <Check className="w-4 h-4" />
-                              Mark as Paid
+                              {isAdmin ? (
+                                <>
+                                  <Check className="w-4 h-4" />
+                                  Mark as Paid
+                                </>
+                              ) : (
+                                "Wait for Admin to Settle"
+                              )}
                             </button>
                           ) : (
                             <div className="w-full py-2.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-semibold rounded-lg flex items-center justify-center gap-2">
@@ -479,6 +539,18 @@ const MainContent = ({
           </div>
         </div>
       </div>
+      
+      {editingExpense && (
+        <EditExpenseModal
+          expense={editingExpense}
+          allParticipants={participants}
+          onSave={(updatedExpense) => {
+            onEditExpense(updatedExpense);
+            setEditingExpense(null);
+          }}
+          onClose={() => setEditingExpense(null)}
+        />
+      )}
     </main>
   );
 };

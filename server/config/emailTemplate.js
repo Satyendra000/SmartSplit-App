@@ -421,7 +421,7 @@ exports.WELCOME_EMAIL_TEMPLATE = (userName) => `
                             <table role="presentation" style="width: 100%; margin: 30px 0;">
                                 <tr>
                                     <td style="text-align: center;">
-                                        <a href="https://smartsplit.com/dashboard" style="display: inline-block; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(249, 115, 22, 0.3);">
+                                        <a href="http://localhost:3000/dashboard" style="display: inline-block; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(249, 115, 22, 0.3);">
                                             Get Started →
                                         </a>
                                     </td>
@@ -438,6 +438,93 @@ exports.WELCOME_EMAIL_TEMPLATE = (userName) => `
                             </p>
                             <p style="margin: 0; color: #6b7280; font-size: 12px;">
                                 © ${new Date().getFullYear()} SmartSplit. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+`;
+
+// Settlement Notification Email Template
+exports.SETTLEMENT_NOTIFICATION_TEMPLATE = (
+  userName,
+  amount,
+  creditorName,
+  groupName,
+  sessionId,
+) => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settlement Reminder - SmartSplit</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); min-height: 100vh;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);">
+                    
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 40px 30px; text-align: center;">
+                            <div style="font-size: 48px; margin-bottom: 10px;">💸</div>
+                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">
+                                Settlement Reminder
+                            </h1>
+                            <p style="margin: 5px 0 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">
+                                from ${groupName}
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 24px; font-weight: 600;">
+                                Hi ${userName || "friend"},
+                            </h2>
+                            
+                            <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
+                                This is a friendly reminder that you have a pending settlement in the group <strong>${groupName}</strong>.
+                            </p>
+
+                            <!-- Amount Box -->
+                            <table role="presentation" style="width: 100%; margin: 30px 0;">
+                                <tr>
+                                    <td style="background: #fff7ed; border: 2px dashed #f59e0b; border-radius: 12px; padding: 30px; text-align: center;">
+                                        <p style="margin: 0 0 10px 0; color: #9a3412; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                                            You Owe
+                                        </p>
+                                        <p style="margin: 0; font-size: 36px; font-weight: 700; color: #d97706;">
+                                            ₹${amount}
+                                        </p>
+                                        <p style="margin: 10px 0 0 0; color: #9a3412; font-size: 14px;">
+                                            to <strong>${creditorName}</strong>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin: 0 0 0 0; color: #6b7280; font-size: 14px; line-height: 1.6; text-align: center;">
+                                Please settle this amount at your earliest convenience.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+                            <a href="http://localhost:3000/dashboard/split?session=${sessionId}" style="display: inline-block; background: #0f172a; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600;">
+                                Open Dashboard
+                            </a>
+                            <p style="margin: 20px 0 0 0; color: #94a3b8; font-size: 12px;">
+                                © ${new Date().getFullYear()} SmartSplit
                             </p>
                         </td>
                     </tr>

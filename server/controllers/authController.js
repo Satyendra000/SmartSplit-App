@@ -29,7 +29,7 @@ const sendEmail = async (to, subject, html) => {
     };
 
     await sgMail.send(msg);
-    console.log(`✅ Email sent successfully to ${to}`);
+    if (process.env.NODE_ENV === 'development') console.log(`✅ Email sent successfully to ${to}`);
     return true;
   } catch (error) {
     console.error(`❌ SendGrid Error:`, error.response?.body || error.message);

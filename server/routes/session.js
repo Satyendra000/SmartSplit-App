@@ -205,4 +205,103 @@ router.get("/", async (req, res) => {
   }
 });
 
+// Notify participants about settlement
+router.post("/:id/notify", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { settlements, participantEmails } = req.body;
+
+    if (process.env.NODE_ENV === "development") {
+      console.log("📧 Notify request received:", { id, settlementsCount: settlements?.length, emailsCount: participantEmails?.length });
+    }
+
+    const session = await Session.findOne({ id });
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: "Session not found",
+      });
+    }
+
+    if (!settlements || !Array.isArray(settlements)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid settlements data",
+      });
+    }
+
+    if (!participantEmails || participantEmails.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No email addresses provided",
+      });
+    }
+
+    // Filter settlements where the debtor has an email
+    const notifications = settlements.filter((settlement) => {
+      const debtorEmailObj = participantEmails.find(
+        (p) => p.name === settlement.from
+      );
+      return debtorEmailObj && debtorEmailObj.email;
+    });
+
+    if (notifications.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No participants with emails to notify",
+      });
+    }
+
+    const { SETTLEMENT_NOTIFICATION_TEMPLATE } = require("../config/emailTemplate");
+    const sgMail = require("@sendgrid/mail");
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+    // Send emails
+    const emailPromises = notifications.map(async (note) => {
+      const debtor = participantEmails.find((p) => p.name === note.from);
+      
+      // Double-check debtor exists and has email
+      if (!debtor || !debtor.email) {
+        console.warn(`⚠️ Skipping notification for ${note.from} - no email found`);
+        return Promise.resolve();
+      }
+      
+      const msg = {
+        to: debtor.email,
+        from: process.env.SENDER_EMAIL,
+        subject: `Settlement Reminder from ${session.groupName}`,
+        html: SETTLEMENT_NOTIFICATION_TEMPLATE(
+          debtor.name,
+          note.amount.toFixed(2),
+          note.to,
+          session.groupName,
+          session.id
+        ),
+      };
+
+      if (process.env.NODE_ENV === "development") {
+        console.log(`📧 Sending settlement email to ${debtor.email} for ₹${note.amount}`);
+      }
+      return sgMail.send(msg);
+    });
+
+    await Promise.all(emailPromises);
+
+    res.json({
+      success: true,
+      message: `Sent ${notifications.length} reminder email(s)`,
+    });
+
+  } catch (error) {
+    console.error("❌ Error sending notifications:", error);
+    console.error("Error stack:", error.stack);
+    res.status(500).json({
+      success: false,
+      message: "Failed to send notifications",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;

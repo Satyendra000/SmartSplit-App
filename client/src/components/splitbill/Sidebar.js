@@ -165,7 +165,7 @@ const Sidebar = ({
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 max-h-48 overflow-y-auto space-y-2">
                 {allParticipants && allParticipants.length > 0 ? (
                   
-                  allParticipants.filter((person) => person !== paidBy).map((person, index) => (
+                  allParticipants.map((person, index) => (
                     <label
                       key={index}
                       className={`flex items-center gap-3 cursor-pointer p-2.5 rounded-lg transition-all duration-300 ${
@@ -207,8 +207,8 @@ const Sidebar = ({
               {participants.length > 0 && (
                 <div className="mt-3 px-4 py-2.5 bg-orange-500/10 border border-orange-500/20 rounded-xl">
                   <p className="text-xs text-orange-400 font-semibold">
-                    Splitting among {participants.length + 1}{" "}
-                    {participants.length + 1 === 1 ? "person" : "people"}
+                    Splitting among {participants.length}{" "}
+                    {participants.length === 1 ? "person" : "people"}
                   </p>
                 </div>
               )}

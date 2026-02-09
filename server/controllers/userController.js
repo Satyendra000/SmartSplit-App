@@ -24,7 +24,8 @@ exports.searchUser = async (req, res) => {
     }).select("name email avatar phone");
 
     if (!user) {
-      console.log("No user found with email:", searchEmail);
+      if (process.env.NODE_ENV === 'development') 
+        console.log("No user found with email:", searchEmail);
       return res.status(404).json({
         success: false,
         message: "User not found with this email address",

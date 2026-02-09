@@ -31,7 +31,7 @@ const Reports = ({ expenses, summaryData, yourBalance }) => {
   // Calculate category breakdown from actual expenses
   const categoryData = useMemo(() => {
     if (!expenses || expenses.length === 0) {
-      return [{ name: "No Data", value: 1, color: "#6b7280" }];
+      return [];
     }
 
     const categoryTotals = {};
