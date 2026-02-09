@@ -12,6 +12,7 @@ const app = express();
 app.use(cors({
   origin: [
     "http://localhost:3000",
+    "https://smartsplit-nine.vercel.app",
     "https://smartsplit-app.vercel.app",
     "https://smartsplit-app.netlify.app",
     process.env.FRONTEND_URL
