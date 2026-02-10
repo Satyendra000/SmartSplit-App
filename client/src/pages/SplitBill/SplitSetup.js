@@ -225,7 +225,7 @@ const SplitSetup = ({ toast }) => {
                       value={participantEmails[index] || ""}
                       onChange={(e) => updateParticipantEmail(index, e.target.value)}
                       placeholder="📧 Email (optional, for notifications)"
-                      className="w-full px-4 py-2.5 ml-4 bg-white/[0.02] border border-white/5 rounded-lg text-white/70 placeholder-white/20 focus:outline-none focus:border-yellow-500/30 focus:bg-white/5 transition-all text-sm italic"
+                      className="w-full px-4 py-2.5 ml-4 bg-white/[0.02] border border-white/5 rounded-lg text-white/70 placeholder-white/20 focus:outline-none focus:border-yellow-500/30 focus:bg-white/5 transition-all text-sm"
                     />
                   </div>
                 ))}

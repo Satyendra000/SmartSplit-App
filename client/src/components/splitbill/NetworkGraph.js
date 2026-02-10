@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import ReactFlow, {
   Controls,
   Background,
@@ -13,6 +13,8 @@ const nodeTypes = {};
 const edgeTypes = {};
 
 const DebtNetworkFlow = ({ expenses = [], participants = [] }) => {
+  const [isZoomLocked, setIsZoomLocked] = useState(true);
+
   const { nodes, edges } = useMemo(() => {
     if (!participants || participants.length === 0) {
       return { nodes: [], edges: [] };
@@ -204,7 +206,10 @@ const DebtNetworkFlow = ({ expenses = [], participants = [] }) => {
   }
 
   return (
-    <div style={{ width: "100%", height: "450px" }}>
+    <div 
+      style={{ width: "100%", height: "450px", position: "relative" }}
+      onDoubleClick={() => setIsZoomLocked(!isZoomLocked)}
+    >
       <ReactFlow
         nodes={flowNodes}
         edges={flowEdges}
@@ -213,12 +218,45 @@ const DebtNetworkFlow = ({ expenses = [], participants = [] }) => {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
+        zoomOnScroll={!isZoomLocked}
+        zoomOnPinch={!isZoomLocked}
+        zoomOnDoubleClick={false}
+        panOnScroll={!isZoomLocked}
+        panOnDrag={!isZoomLocked}
+        preventScrolling={isZoomLocked}
         style={{
           background: "#0a0a0a",
           borderRadius: "1rem",
         }}
       >
-        <Controls showInteractive={false} />
+        <Controls showInteractive={false}>
+          <button
+            onClick={() => setIsZoomLocked(!isZoomLocked)}
+            title={isZoomLocked ? "Unlock zoom (Double-click)" : "Lock zoom (Double-click)"}
+            style={{
+              width: "100%",
+              height: "32px",
+              border: "none",
+              background: "rgba(255, 255, 255, 0.9)",
+              color: isZoomLocked ? "#ef4444" : "#22c55e",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "18px",
+              transition: "all 0.2s ease",
+              borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.9)";
+            }}
+          >
+            {isZoomLocked ? "🔒" : "🔓"}
+          </button>
+        </Controls>
         <Background
           variant="dots"
           gap={20}
